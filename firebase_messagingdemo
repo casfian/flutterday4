@@ -1,0 +1,246 @@
+//pubspecs.yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_messaging: ^6.0.16
+
+
+
+//main.dart
+//================================================
+import 'package:flutter/material.dart';
+import 'package:mampufb/messaging_widget.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  final String appTitle = 'Firebase messaging';
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        title: appTitle,
+        home: MainPage(appTitle: appTitle),
+      );
+}
+
+class MainPage extends StatelessWidget {
+  final String appTitle;
+
+  const MainPage({this.appTitle});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(appTitle),
+        ),
+        body: MessagingWidget(),
+      );
+}
+
+
+
+//messaging_widget.dart
+//================================================
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:mampufb/message.dart';
+
+class MessagingWidget extends StatefulWidget {
+  @override
+  _MessagingWidgetState createState() => _MessagingWidgetState();
+}
+
+class _MessagingWidgetState extends State<MessagingWidget> {
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  final List<Message> messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    //optional:
+    //just to get the messaging token
+    //we need it if we want to test on device later
+    print('Initializing....');
+    _firebaseMessaging.getToken().then((token) {
+      assert(token != null);
+      print('Token: $token');
+    });
+    //---
+
+    //initialised
+    // 3 stages: onMessage, onLaunch, Resume
+    _firebaseMessaging.configure(
+
+      onMessage: (Map<String, dynamic> message) async {
+        //do wha you want here
+        print("onMessage: $message");
+        final notification = message['notification'];
+        setState(() {
+          messages.add(Message(
+              title: notification['title'], body: notification['body']));
+        });
+      },
+
+      onLaunch: (Map<String, dynamic> message) async {
+        //do wha you want here
+        print("onLaunch: $message");
+        final notification = message['data'];
+        setState(() {
+          messages.add(Message(
+            title: '${notification['title']}',
+            body: '${notification['body']}',
+          ));
+        });
+      },
+
+      onResume: (Map<String, dynamic> message) async {
+        //do wha you want here
+        print("onResume: $message");
+        final notification = message['data'];
+        setState(() {
+          messages.add(Message(
+            title: '${notification['title']}',
+            body: '${notification['body']}',
+          ));
+        });
+      },
+
+    );
+
+    _firebaseMessaging.requestNotificationPermissions(
+        const IosNotificationSettings(sound: true, badge: true, alert: true));
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        children: messages.map(buildMessage).toList(),
+      );
+
+  Widget buildMessage(Message message) => ListTile(
+        title: Text(message.title),
+        subtitle: Text(message.body),
+      );
+}
+
+
+//message.dart
+//================================================
+//Model file only (Optional)
+
+import 'package:flutter/material.dart';
+
+class Message {
+  final String title;
+  final String body;
+
+  const Message({
+    @required this.title,
+    @required this.body,
+  });
+}
+
+
+
+
+
+//If Error in Android, make sure you
+//=============================================
+Make sure you add the google-services.json
+
+1. Add "multiDexEnabled true" in app build.gradle
+
+defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId "com.example.mampufb"
+        minSdkVersion 16
+        targetSdkVersion 28
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        multiDexEnabled true
+    }
+    
+2. Add implementation 'com.google.firebase:firebase-messaging:20.2.1' in app build.gradle
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.google.firebase:firebase-analytics:17.2.2'
+    implementation 'com.google.firebase:firebase-messaging:20.2.1'
+}
+
+3. Also make sure that your Emulator or Device has Google PlayStore
+
+4. If your emulator does not show any messages, Cold Reboot
+
+5. Also Push notification works in actual devices so some features might not work properly
+
+6. make sure Permission in Android and iOS
+
+For Android, in AndroidManifest.xml, add
+<uses-permission android:name="android.permission.INTERNET"/>
+
+7. Create "Applicatin.kt" besides mainActivity.kt.
+   Paste this kotlin code if you use kotlin
+   
+//Application.kt
+package com.example.mampufb
+ 
+import io.flutter.app.FlutterApplication
+import io.flutter.plugin.common.PluginRegistry
+import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback
+import io.flutter.plugins.firebasemessaging.FlutterFirebaseMessagingService
+
+class Application : FlutterApplication(), PluginRegistrantCallback {
+    override fun onCreate() {
+        super.onCreate()
+        FlutterFirebaseMessagingService.setPluginRegistrant(this);
+    }
+
+    override fun registerWith(registry: PluginRegistry?) {
+        registry?.registrarFor("io.flutter.plugins.firebasemessaging.FirebaseMessagingPlugin");
+    }
+}
+
+
+//If Error in iOS, make sure you
+//=============================================
+IMPORTANT;
+1. Add "GoogleService-info.plist" in Xcode not in Flutter. XCode will create a Bridge but not in FLutter if you add in VSC
+
+In XCode:
+1. In AppDelegate.swift
+
+import UIKit
+import Flutter
+//Add this for Firebase
+import Firebase
+
+@UIApplicationMain
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    
+    //1, Add this for Firebase
+    FirebaseApp.configure()
+    
+    GeneratedPluginRegistrant.register(with: self)
+    if #available(iOS 10.0, *) {
+        
+    //2. Add this For Firebase Messaging
+      UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
+    }
+    
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+2. In Xcode
++Capabilities
+Enabled the following;
+1. 
+2. 
+
+
+Refer:
+https://medium.com/@jun.chenying/flutter-tutorial-part3-push-notification-with-firebase-cloud-messaging-fcm-2fbdd84d3a5e
