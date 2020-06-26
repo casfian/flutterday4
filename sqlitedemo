@@ -1,3 +1,12 @@
+//You have to create a sqlite database called "dogdatabase.db" in the project
+//if not will give an error file not found
+//use Terminal
+// >sqlite3 dogdatabase.db
+//
+//to quit sqlite3 >.quit
+
+
+
 // import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
